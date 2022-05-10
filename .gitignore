@@ -1,0 +1,7 @@
+/.vscode
+
+*.glob
+.*.aux
+*.vo
+*.vok
+*.vos
