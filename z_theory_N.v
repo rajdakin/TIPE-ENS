@@ -21,7 +21,13 @@ Proof.
 	intros e.
 	by unfold Succ; exact (pair_union_is_union_l _ _).
 Qed.
-Lemma Eeq_is_Eeq_succ : forall A B : Ensemble, A =E B -> Succ A =E Succ B.
+Lemma succ_is_n_n : forall e a : Ensemble, a inE Succ e -> a inE e \/ a E= e.
+Proof.
+	intros e a ainS; specialize (pair_union_is_union ainS) as [aine|ainse].
+	by left; exact aine.
+	by right; exact (singleton_is_singleton ainse).
+Qed.
+Lemma Eeq_is_Eeq_succ : forall A B : Ensemble, A E= B -> Succ A E= Succ B.
 Proof.
 	intros A B AeqB; unfold Succ; apply incl_antisym; apply incl_incl_is_union_incl.
 	by exact (incl_trans (Eeq_incl_l AeqB) (pair_union_is_union_l _ _)).
@@ -32,76 +38,121 @@ Proof.
 Qed.
 Arguments Eeq_is_Eeq_succ {A B} AeqB.
 
+Definition NatE : Ensemble := let (v, _) := infinity_axiom in v.
+Definition NatP : (is_nat NatE) /\ (forall a, (is_nat a) -> NatE incl a)
+ := let (v, p)
+    as iax
+    return (is_nat (let (v, _) := iax in v)
+            /\ (forall a, (is_nat a) -> (let (v, _) := iax in v) incl a))
+    := infinity_axiom in p.
+
+Lemma induction_N (P : Ensemble -> Prop) :
+ P (EmptySet) -> (Eforall e in NatE, P e -> P (Succ e)) -> Eforall n in NatE, P n.
+Proof.
+	intros I IH.
+	specialize (schema_restricted_comprehension_axiom P NatE) as [[C h] Cprop].
+	intros n ninNatE.
+	refine (proj2 (proj1 (iff_and (Cprop n)) _)).
+	refine (proj2 NatP _ (conj _ _) _ ninNatE).
+	apply Cprop; split.
+	by exact (proj1 (proj1 NatP)).
+	by exact I.
+	intros x xinC.
+	specialize (proj1 (iff_and (Cprop x)) xinC) as [xinNatE Px].
+	apply (proj2 (iff_and (Cprop (Succ x)))); split.
+	by exact (proj2 (proj1 NatP) _ xinNatE).
+	by exact (IH x xinNatE Px).
+Qed.
+Lemma double_induction_N : forall P : Ensemble -> Prop, P EmptySet -> P (Succ EmptySet) ->
+  (Eforall n in NatE, P n -> P (Succ n) -> P (Succ (Succ n))) -> Eforall n in NatE, P n.
+Proof.
+	intros P I0 I1 IH.
+	assert (H : Eforall n in NatE, P n /\ P (Succ n)).
+	{ apply induction_N.
+	  by split; [exact I0|exact I1].
+	  by intros e ein [Pe PSe]; exact (conj PSe (IH _ ein Pe PSe)). }
+	by intros n nin; exact (proj1 (H _ nin)).
+Qed.
+
+Lemma in_N_is_in_N : Eforall a in NatE, forall e, e inE a -> e inE NatE.
+Proof.
+	apply (induction_N (fun a => forall e, e inE a -> e inE NatE)).
+	intros e einE; contradiction (empty_is_empty _ einE).
+	intros a ain IHa e einSa; destruct (succ_is_n_n _ _ einSa) as [eina|eeqa].
+	by exact (IHa _ eina).
+	by exact (Eeq_in_trans_r eeqa ain).
+Qed.
+
+Lemma in_is_in_succ : forall A : Ensemble, Eforall B in NatE, A inE B -> Succ A inE Succ B.
+Proof.
+	intros A B Bin AinB; generalize dependent B;
+	 apply (induction_N (fun B => A inE B -> Succ A inE Succ B)).
+	intros AinE; contradiction (empty_is_empty _ AinE).
+	intros B Bin IHB AinSB.
+	destruct (succ_is_n_n _ _ AinSB) as [AinB|AeqB].
+	by exact (e_incl_succ _ _ (IHB AinB)).
+	by exact (Eeq_in_trans_r (Eeq_is_Eeq_succ AeqB) (e_in_succ _)).
+Qed.
+Arguments in_is_in_succ {A B} Bin AinB.
+
+Lemma in_trans_N : forall a b : Ensemble, Eforall c in NatE,
+ a inE b -> b inE c -> a inE c.
+Proof.
+	intros a b c cin ainb; generalize dependent c.
+	refine (induction_N
+		(fun c => b inE c -> a inE c)
+		_
+		_).
+	intros binE; contradiction (empty_is_empty _ binE).
+	intros c cin IHc binSc.
+	specialize (succ_is_n_n _ _ binSc) as [binc|beqc].
+	by exact (e_incl_succ _ _ (IHc binc)).
+	by exact (e_incl_succ _ _ (in_Eeq_trans_l beqc ainb)).
+Qed.
+
+Lemma succ_inj_N : Eforall a in NatE, Eforall b in NatE, Succ a E= Succ b -> a E= b.
+Proof.
+	intros a ain b bin SaeqSb.
+	specialize (succ_is_n_n _ _ (in_Eeq_trans_l SaeqSb (e_in_succ _))) as [ainb|aeqb].
+	specialize (succ_is_n_n _ _ (in_Eeq_trans_r SaeqSb (e_in_succ _))) as [bina|beqa].
+	exfalso; specialize (in_trans_N _ _ _ ain ainb bina) as aina; clear b bin SaeqSb ainb bina.
+	generalize dependent a; apply (induction_N (fun a => ~ (a inE a))).
+	intros EinE; exact (empty_is_empty _ EinE).
+	intros a ain ania SainSa.
+	specialize (succ_is_n_n _ _ SainSa) as [Saina|Saeqa].
+	by exact (ania (in_trans_N _ _ _ ain (e_in_succ _) Saina)).
+	by exact (ania (in_Eeq_trans_l Saeqa (Eeq_in_trans_l Saeqa SainSa))).
+	by exact (Eeq_sym beqa).
+	by exact aeqb.
+Qed.
+Arguments succ_inj_N {a} ain {b} bin SNmeqSNn.
+
 Inductive nat :=
 	| O : nat
 	| S : nat -> nat.
 Fixpoint N (n : nat) : Ensemble := match n with O => EmptySet | S n => Succ (N n) end.
 Definition Nnat : Ensemble := ens nat N.
 
-Lemma induction_N (P : Ensemble -> Prop) :
- P (EmptySet) -> (forall e : Ensemble, e inE Nnat -> P e -> P (Succ e)) ->
-  forall n : Ensemble, n inE Nnat -> P n.
+Lemma N_is_nat : Nnat E= NatE.
 Proof.
-	intros I IH.
-	specialize (schema_restricted_comprehension_axiom P Nnat) as [[C h] Cprop].
-	assert (C_is_nat : is_nat (ens C h)).
-	{ split.
-	  apply (proj2 (iff_and (Cprop EmptySet))); split.
-	  by exists O; exact (Eeq_refl _).
-	  by exact I.
-	  intros x xinC.
-	  specialize (proj1 (iff_and (Cprop x)) xinC) as [[n xinNnatbyn] Px].
-	  apply (proj2 (iff_and (Cprop (Succ x)))); split.
-	  by exists (S n); exact (Eeq_is_Eeq_succ xinNnatbyn).
-	  by exact (IH x (Eeq_in_trans_r xinNnatbyn (application_in _ _ _)) Px). }
-	intros x [n xinNnatbyn];
-	  apply (extensionality_axiom' (Eeq_sym xinNnatbyn)); clear x xinNnatbyn.
-	destruct C_is_nat as [einC IHC].
-	induction n as [|n IHn]. (* Seems weird to do this, but oh well... (N is defined weirdly) *)
-	by exact (proj2 (proj1 (iff_and (Cprop (N O))) einC)).
-	(* I hate intermediary steps :p (basically, use Cprop the two ways, then IHC) *)
-	by exact (proj2 (proj1 (iff_and (Cprop _)) (IHC _ 
-		(proj2 (iff_and (Cprop (N n))) (conj (ex_intro _ n (Eeq_refl _)) IHn))))).
+	apply incl_antisym.
+	intros e [n ein]; generalize dependent e; induction n; intros e ein.
+	by exact (Eeq_in_trans_r ein (proj1 (proj1 NatP))).
+	refine (Eeq_in_trans_r ein (proj2 (proj1 NatP) _ _)); fold N.
+	by exact (IHn _ (Eeq_refl _)).
+	apply (proj2 NatP); split.
+	by exists O; exact (Eeq_refl _).
+	by intros e [n nin]; exists (S n); unfold N; fold N; exact (Eeq_is_Eeq_succ nin).
 Qed.
 Lemma double_induction : forall P : nat -> Prop, P O -> P (S O) ->
-  (forall n : nat, P n -> P (S n) -> P (S (S n))) -> forall n, P n.
+  (forall n : nat, P n -> P (S n) -> P (S (S n))) -> forall n : nat, P n.
 Proof.
 	intros P I0 I1 IH.
 	assert (H : forall n : nat, P n /\ P (S n)).
-	{ intros n; induction n as [|n [IHn IHSn]]; split.
-	  by exact I0. by exact I1.
-	  by exact IHSn.
-	  by exact (IH _ IHn IHSn). }
+	{ intros n; induction n as [|n [Pn PSn]].
+	  by exact (conj I0 I1).
+	  by exact (conj PSn (IH _ Pn PSn)). }
 	by intros n; exact (proj1 (H _)).
-Qed.
-
-Lemma N_in_nat : forall a : _, is_nat a -> Nnat incl a.
-Proof.
-	intros a [eina succaincla] Nn [n NninNbyn].
-	apply (Eeq_in_trans_r NninNbyn).
-	by exact (induction_N
-	  (fun k => k inE a)
-	  eina
-	  (fun x _ xina => succaincla x xina)
-	  (N n)
-	  (application_in _ _ _)).
-Qed.
-Lemma N_is_nat : is_nat Nnat.
-Proof.
-	split.
-	by exists O; exact (Eeq_refl _).
-	intros x [n xinNbyn].
-	by exists (S n); exact (Eeq_is_Eeq_succ xinNbyn).
-Qed.
-Lemma nat_in_N : forall a : Ensemble,
-	is_nat a ->
-	(forall b : Ensemble, is_nat b -> a incl b) ->
-	forall n : Ensemble, n inE a -> exists k : nat, n =E N k.
-Proof.
-	intros a [eina succaincla] ainclallnat n nina.
-	specialize (ainclallnat Nnat N_is_nat) as ainclN.
-	specialize (ainclN _ nina) as [b ninNbyb].
-	by exists b; exact ninNbyb.
 Qed.
 
 Inductive LessThan_itercN : nat -> nat -> Type :=
@@ -301,8 +352,8 @@ Qed.
 Lemma natural_longest_string_n : forall n : nat,
 	(forall g : nat -> Ensemble,
 	 (forall m : nat, LessThan_iterN m n -> (g m) inE (g (S m))) ->
-	 (g n =E N n) ->
-	 (forall m : nat, LessThan_iterN m (S n) -> g m =E N m)) /\
+	 (g n E= N n) ->
+	 (forall m : nat, LessThan_iterN m (S n) -> g m E= N m)) /\
 	(forall f : nat -> Ensemble, (exists m : nat,
 		(LessThan_iterN m (S n) /\ (f m) not_in (f (S m)))) \/
 		((f (S n)) not_in (N (S n)))).
@@ -312,7 +363,7 @@ Proof.
 	  by exact gOeqO.
 	  by is_false (ge_is_not_lt_iterN _ _ (gei_oN _) (lt_iter_revN mltSO)).
 	- intros f.
-	  specialize (classic (f (S O) =E N O)) as [fSOeq | fSOne].
+	  specialize (classic (f (S O) E= N O)) as [fSOeq | fSOne].
 	  left; exists O; split.
 	  by exact (lti_oN _).
 	  intros fOnifSO; specialize (in_Eeq_trans_l fSOeq fOnifSO); unfold N.
@@ -474,7 +525,7 @@ Proof.
 	by intros ? IHn _; exact IHn.
 Qed.
 
-Lemma succ_inj : forall m n : nat, Succ (N m) =E Succ (N n) -> N m =E N n.
+Lemma succ_inj : forall m n : nat, Succ (N m) E= Succ (N n) -> N m E= N n.
 Proof.
 	intros m n SmeqSn.
 	specialize (in_Eeq_trans_l SmeqSn (n_in_Sn m)) as minSn.
@@ -517,7 +568,7 @@ Proof.
 Qed.
 Arguments succ_inj {m n} SNmeqSNn.
 
-Lemma N_inj : forall m n : nat, N m =E N n -> m = n.
+Lemma N_inj : forall m n : nat, N m E= N n -> m = n.
 Proof.
 	intros m; induction m as [|m IHm].
 	- intros [|n] NOeqNn.
@@ -535,23 +586,23 @@ Proof.
 Qed.
 Arguments N_inj {m n} NmeqNn.
 
-Lemma NaddN_normal_l : forall n a b : nat, N (addN n a) =E N (addN n b) -> N a =E N b.
+Lemma NaddN_normal_l : forall n a b : nat, N (addN n a) E= N (addN n b) -> N a E= N b.
 Proof.
 	intros n; induction n as [|n IHn]; intros a b npaeqnpb.
 	by exact npaeqnpb.
 	by exact (IHn _ _ (succ_inj npaeqnpb)).
 Qed.
-Lemma NaddN_normal_r : forall n a b : nat, N (addN a n) =E N (addN b n) -> N a =E N b.
+Lemma NaddN_normal_r : forall n a b : nat, N (addN a n) E= N (addN b n) -> N a E= N b.
 Proof.
 	by intros n a b apneqbpn; rewrite (addNC a _), (addNC b _) in apneqbpn;
 	  exact (NaddN_normal_l _ _ _ apneqbpn).
 Qed.
-Lemma NaddN_normal_lr : forall n a b : nat, N (addN n a) =E N (addN b n) -> N a =E N b.
+Lemma NaddN_normal_lr : forall n a b : nat, N (addN n a) E= N (addN b n) -> N a E= N b.
 Proof.
 	by intros n a b apneqbpn; rewrite (addNC b _) in apneqbpn;
 	  exact (NaddN_normal_l _ _ _ apneqbpn).
 Qed.
-Lemma NaddN_normal_rl : forall n a b : nat, N (addN a n) =E N (addN n b) -> N a =E N b.
+Lemma NaddN_normal_rl : forall n a b : nat, N (addN a n) E= N (addN n b) -> N a E= N b.
 Proof.
 	by intros n a b apneqbpn; rewrite (addNC a _) in apneqbpn;
 	  exact (NaddN_normal_l _ _ _ apneqbpn).
@@ -704,7 +755,7 @@ Qed.
 Lemma incl_is_leeN : forall m n : nat, (N m) incl (N n) -> LessEqual_existN m n.
 Proof.
 	intros m n mincln; generalize dependent m; induction n as [|n IHn]; intros m mincln.
-	- specialize (classic (N m =E N O)) as [meqO | mneO].
+	- specialize (classic (N m E= N O)) as [meqO | mneO].
 	  by rewrite (N_inj meqO); exact (leeN_refl _).
 	  specialize (non_empty_is_not_empty _ mneO) as [x xinm].
 	  specialize (mincln _ xinm) as xine.
@@ -745,7 +796,7 @@ Proof.
 Qed.
 
 Example all_nonempty_N_is_minored : forall a : Ensemble,
-  a incl Nnat -> a <>E EmptySet -> exists n : nat, (N n inE a)
+  a incl Nnat -> a E<> EmptySet -> exists n : nat, (N n inE a)
     /\ (forall y : Ensemble, y inE a -> N n incl y).
 Proof.
 	intros a ainclN anee.
@@ -791,7 +842,7 @@ Proof.
 	by exact (strong_induction _ (ex_intro _ _ (conj (leeN_refl _) xina))).
 Qed.
 Example all_nonempty_majored_maximum : forall a : Ensemble,
-  a incl Nnat -> a <>E EmptySet -> (exists n : nat, (forall k : _, k inE a -> k incl N n))
+  a incl Nnat -> a E<> EmptySet -> (exists n : nat, (forall k : _, k inE a -> k incl N n))
     -> exists n : nat, (N n inE a) /\ (forall y : Ensemble, y inE a -> y incl N n).
 Proof.
 	intros a ainclN anee [M amajbyM].
@@ -800,7 +851,7 @@ Proof.
 	specialize (non_empty_is_not_empty _ anee) as [x xina].
 	destruct (ainclN _ xina) as [n xinNbyn]; apply (Eeq_in_trans_l xinNbyn) in xina; clear x xinNbyn.
 	specialize (amajbyM _ xina).
-	specialize (classic (N n =E N O)) as [neqO | nneO].
+	specialize (classic (N n E= N O)) as [neqO | nneO].
 	by apply (Eeq_in_trans_l neqO) in xina; exact xina.
 	specialize (non_empty_is_not_empty _ nneO) as [x xinn].
 	by is_false (empty_is_empty _ (amajbyM _ xinn)).

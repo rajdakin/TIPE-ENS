@@ -44,14 +44,14 @@ Proof.
 	by intros x; specialize (ainclb x) as [y Hy]; exists y; exact (IHa _ _ Hy).
 Qed.
 
-Infix "=E" := Ensemble_eq (at level 70, no associativity).
-Notation "a '<>E' b" := (~ (a =E b)) (at level 70, no associativity).
-Definition In (a B : Ensemble) := let (B', f) := B in exists b : B', a =E (f b).
+Infix "E=" := Ensemble_eq (at level 70, no associativity).
+Notation "a 'E<>' b" := (~ (a E= b)) (at level 70, no associativity).
+Definition In (a B : Ensemble) := let (B', f) := B in exists b : B', a E= (f b).
 Infix "inE" := In (at level 70, no associativity).
-Notation "'Eforall' x 'in' E , P" := (forall x : Ensemble, x inE E -> P) (at level 200, no associativity, only parsing).
-Notation "'Eexists' x 'in' E , P" := (exists x : Ensemble, (x inE E) /\ P) (at level 200, no associativity, only parsing).
-Notation "'Eforall' x 'in' E 'as' v , P" := (forall x : Ensemble, forall v : x inE E, P) (at level 200, no associativity, only parsing).
-Notation "'Eexists' x 'in' E 'as' v , P" := (exists x : Ensemble, exists v : x inE E, P) (at level 200, no associativity, only parsing).
+Notation "'Eforall' x 'in' E , P" := (forall x : Ensemble, x inE E -> P) (at level 200, no associativity, only parsing, x binder).
+Notation "'Eexists' x 'in' E , P" := (exists x : Ensemble, (x inE E) /\ P) (at level 200, no associativity, only parsing, x binder).
+Notation "'Eforall' x 'in' E 'as' v , P" := (forall x : Ensemble, forall v : x inE E, P) (at level 200, no associativity, only parsing, x binder).
+Notation "'Eexists' x 'in' E 'as' v , P" := (exists x : Ensemble, exists v : x inE E, P) (at level 200, no associativity, only parsing, x binder, v binder).
 Corollary application_in : forall A : _, forall f : _, forall x : A, f x inE (ens A f).
 Proof. by intros A f x; exists x; exact (Eeq_refl _). Qed.
 Notation "a 'not_in' b" := (~ (a inE b)) (at level 70, no associativity).
@@ -65,7 +65,7 @@ Infix "not_incl" := NotIncluded (at level 70, no associativity).
 (* Strangely enough, this axiom is provable...
  * (This should be due to how induction works on sets I guess) *)
 Lemma extensionality_axiom
-	: forall A B : Ensemble, (forall x : _, ((x inE A) <-> (x inE B))) -> (A =E B).
+	: forall A B : Ensemble, (forall x : _, ((x inE A) <-> (x inE B))) -> (A E= B).
 Proof.
 	intros [A f] [B g] H; split.
 	by intros x; exact (proj1 (iff_and (H (f x))) (application_in _ _ _)).
@@ -73,13 +73,11 @@ Proof.
 	  specialize (proj2 (iff_and (H (g y))) (application_in _ _ _)) as [x yinAbyx].
 	by exists x; exact (Eeq_sym _ _ yinAbyx).
 Qed.
-Axiom extensionality_axiom'
-	: forall A B : Ensemble, (A =E B) -> forall P : Ensemble -> Prop, (P A) -> (P B).
-Axiom extensionality_axiom''
-	: forall A B : Ensemble, forall f : Ensemble -> Ensemble, (A =E B) -> (f A) =E (f B).
+Definition is_prop (P : Ensemble -> Prop) : Prop
+	:= forall A : Ensemble, (P A) -> forall B : Ensemble, (A E= B) -> (P B).
 Axiom pairing_axiom
 	: forall A B : Ensemble, exists C : Ensemble, forall x : Ensemble,
-	(x inE C) <-> ((x =E A) \/ (x =E B)).
+	(x inE C) <-> ((x E= A) \/ (x E= B)).
 Axiom union_axiom
 	: forall A : Ensemble, exists C : Ensemble, forall x : Ensemble,
 	(x inE C) <-> exists Y, (Y inE A) /\ (x inE Y).
@@ -90,11 +88,10 @@ Axiom schema_restricted_comprehension_axiom :
 	forall (P : Ensemble -> Prop) (A : Ensemble),
 	exists C : Ensemble, forall x,
 	(x inE C) <-> ((x inE A) /\ (P x)).
-Arguments extensionality_axiom' {A B} AeqB P PA.
 
-Lemma eq_is_Eeq : forall a b : Ensemble, (a = b) -> (a =E b).
+Lemma eq_is_Eeq : forall a b : Ensemble, (a = b) -> (a E= b).
 Proof. by intros a ? H; rewrite <-H; exact (Eeq_refl a). Qed.
-Lemma Eeq_in_trans_l : forall a b c : Ensemble, (a =E b) -> (a inE c) -> b inE c.
+Lemma Eeq_in_trans_l : forall a b c : Ensemble, (a E= b) -> (a inE c) -> b inE c.
 Proof.
 	intros [a f] [b g] [c h] [ainclb bincla] [x aincbyx].
 	exists x; rewrite (ens_pi_is_orig (h x));
@@ -110,12 +107,12 @@ Proof.
 	  specialize (ainclb z) as [k Hk].
 	by exists k; exact (Eeq_trans _ _ _ (Eeq_sym _ _ Hk) Hz).
 Qed.
-Lemma Eeq_in_trans_r : forall a b c : Ensemble, (a =E b) -> (b inE c) -> a inE c.
+Lemma Eeq_in_trans_r : forall a b c : Ensemble, (a E= b) -> (b inE c) -> a inE c.
 Proof.
 	by intros a b c aeqb binc; apply Eeq_sym in aeqb;
 	  exact (Eeq_in_trans_l _ _ _ aeqb binc).
 Qed.
-Lemma Eeq_incl_trans_l : forall a b c : Ensemble, (a =E b) -> (a incl c) -> b incl c.
+Lemma Eeq_incl_trans_l : forall a b c : Ensemble, (a E= b) -> (a incl c) -> b incl c.
 Proof.
 	intros [a f] [b g] [c h] [_ bincla] ainclc x [y xinbbyy].
 	specialize (bincla y) as [z Hz];
@@ -123,23 +120,23 @@ Proof.
 	  exists k.
 	by exact (Eeq_trans _ _ _ xinbbyy (Eeq_trans _ _ _ (Eeq_sym _ _ Hz) Hk)).
 Qed.
-Lemma Eeq_incl_trans_r : forall a b c : Ensemble, (a =E b) -> (b incl c) -> a incl c.
+Lemma Eeq_incl_trans_r : forall a b c : Ensemble, (a E= b) -> (b incl c) -> a incl c.
 Proof.
 	by intros a b c aeqb binclc; apply Eeq_sym in aeqb;
 	  exact (Eeq_incl_trans_l _ _ _ aeqb binclc).
 Qed.
-Lemma in_Eeq_trans_l : forall a b c : Ensemble, (b =E c) -> (a inE b) -> a inE c.
+Lemma in_Eeq_trans_l : forall a b c : Ensemble, (b E= c) -> (a inE b) -> a inE c.
 Proof.
 	intros [a f] [b g] [c h] [binclc _] [x ainbbyx].
 	specialize (binclc x) as [y Hy]; exists y.
 	by exact (Eeq_trans _ _ _ ainbbyx Hy).
 Qed.
-Lemma in_Eeq_trans_r : forall a b c : Ensemble, (b =E c) -> (a inE c) -> a inE b.
+Lemma in_Eeq_trans_r : forall a b c : Ensemble, (b E= c) -> (a inE c) -> a inE b.
 Proof.
 	by intros a b c beqc ainc; apply Eeq_sym in beqc;
 	  exact (in_Eeq_trans_l _ _ _ beqc ainc).
 Qed.
-Lemma incl_Eeq_trans_l : forall a b c : Ensemble, (b =E c) -> (a incl b) -> a incl c.
+Lemma incl_Eeq_trans_l : forall a b c : Ensemble, (b E= c) -> (a incl b) -> a incl c.
 Proof.
 	intros [a f] [b g] [c h] [binclc _] ainclc x [y xinbbyy].
 	specialize (ainclc _ (application_in _ _ y)) as [z Hz];
@@ -147,7 +144,7 @@ Proof.
 	  exists k.
 	by exact (Eeq_trans _ _ _ xinbbyy (Eeq_trans _ _ _ Hz Hk)).
 Qed.
-Lemma incl_Eeq_trans_r : forall a b c : Ensemble, (b =E c) -> (a incl c) -> a incl b.
+Lemma incl_Eeq_trans_r : forall a b c : Ensemble, (b E= c) -> (a incl c) -> a incl b.
 Proof.
 	by intros a b c beqc ainclc; apply Eeq_sym in beqc;
 	  exact (incl_Eeq_trans_l _ _ _ beqc ainclc).
@@ -172,7 +169,7 @@ Proof.
 	intros a b c ainclb binclc x xina.
 	by exact (binclc _ (ainclb _ xina)).
 Qed.
-Lemma incl_antisym : forall a b : Ensemble, a incl b -> b incl a -> a =E b.
+Lemma incl_antisym : forall a b : Ensemble, a incl b -> b incl a -> a E= b.
 Proof.
 	intros [a f] [b g] ainclb bincla; split.
 	intros x.
@@ -181,7 +178,7 @@ Proof.
 	specialize (bincla _ (application_in b g y)) as [x gyeqfx].
 	by exists x; exact (Eeq_sym gyeqfx).
 Qed.
-Lemma Eeq_incl_l : forall a b : Ensemble, a =E b -> a incl b.
+Lemma Eeq_incl_l : forall a b : Ensemble, a E= b -> a incl b.
 Proof.
 	intros [a f] [b g] [ainclb _].
 	intros x [y xinabyy].
@@ -189,7 +186,7 @@ Proof.
 	exists z.
 	by exact (Eeq_trans xinabyy fyeqgz).
 Qed.
-Lemma Eeq_incl_r : forall a b : Ensemble, a =E b -> b incl a.
+Lemma Eeq_incl_r : forall a b : Ensemble, a E= b -> b incl a.
 Proof.
 	by intros a b beqa; exact (Eeq_incl_l _ _ (Eeq_sym beqa)).
 Qed.
@@ -222,7 +219,7 @@ Lemma empty_is_empty : forall x, x not_in EmptySet.
 Proof. by intros _ [[] _]. Qed.
 Lemma empty_is_empty' : ~ (exists x, x inE EmptySet).
 Proof. by intros [_ [[] _]]. Qed.
-Lemma empties_are_empty : forall a : Ensemble, (~ (exists x, x inE a)) -> (a =E EmptySet).
+Lemma empties_are_empty : forall a : Ensemble, (~ (exists x, x inE a)) -> (a E= EmptySet).
 Proof.
 	intros a ae.
 	apply incl_antisym.
@@ -231,40 +228,49 @@ Proof.
 	intros ? [[] _].
 Qed.
 Corollary non_empty_is_not_empty : forall A : Ensemble,
-  (A <>E EmptySet) -> exists x : _, x inE A.
+  (A E<> EmptySet) -> exists x : _, x inE A.
 Proof.
 	intros a anee.
 	apply NNPP; intros nexxina.
 	by exact (anee (empties_are_empty a nexxina)).
 Qed.
 
+Inductive prod (A B:Type) : Type :=
+  pair : A -> B -> A * B
+where "x * y" := (prod x y) : type_scope.
+Add Printing Let prod.
+Arguments pair {A B} _ _.
+Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) : core_scope.
+Definition fst {A B} (H: prod A B) := match H with (x, y) => x end.
+Definition snd {A B} (H: prod A B) := match H with (x, y) => y end.
+
 Definition separation_cons (A : Ensemble) (P : Ensemble -> Prop) : Ensemble :=
-	let (A', f) := A in
+	let (A', f) := A in 
 	 ens { x : A' | P (f x) }
-	  (fun p : { x : A' | P (f x) } => match p with exist _ x _ => f x end).
+	   (fun p : { x : A' | P (f x) } => match p with exist _ x _ => f x end).
 Notation "E{ x 'in' A | P }" := (separation_cons A (fun x => P))
-	(at level 69, only parsing).
-Notation "{ x 'in' A | P }" := (separation_cons A (fun x => P))
-	(at level 69, only printing).
+	(at level 69, only parsing, x binder).
+Notation "{ x 'in' A | P }" := (E{ x in A | P })
+	(at level 69, only printing, x binder).
 
 Lemma separation_cons_included : forall (A : Ensemble) (P : Ensemble -> Prop),
-	E{x in A | P x} incl A.
+	E{x in A | P x } incl A.
 Proof.
 	intros [A f] P x [[y _] xinabyy].
 	by exists y; exact xinabyy.
 Qed.
-Lemma separation_cons_separated : forall (A : Ensemble) (P : Ensemble -> Prop),
+Lemma separation_cons_separated : forall (A : Ensemble) (P : Ensemble -> Prop) (Pp : is_prop P),
 	Eforall x in E{x in A | P x}, P x.
 Proof.
-	intros [A f] P x [[y Pfy] xinsepbyy].
-	by exact (extensionality_axiom' (Eeq_sym xinsepbyy) _ Pfy).
+	intros [A f] P Pp x [[y Pfy] xinsepbyy].
+	by exact (Pp _ Pfy _ (Eeq_sym xinsepbyy)).
 Qed.
-Lemma separation_cons_separates : forall (A : Ensemble) (P : Ensemble -> Prop),
+Lemma separation_cons_separates : forall (A : Ensemble) (P : Ensemble -> Prop) (Pp : is_prop P),
 	Eforall x in A, P x -> (x inE E{x in A | P x}).
 Proof.
-	intros [A f] P x [y xinAbyy] Px.
-	apply (extensionality_axiom' xinAbyy) in Px.
-	by exists (exist _ y Px); exact xinAbyy.
+	intros [A f] P Pp x [y xinAbyy] Px.
+	apply Pp in Px.
+	by exists (exist (fun x => P (f x)) y (Px _ xinAbyy)); exact xinAbyy.
 Qed.
 
 Corollary ex_union_set : forall A B : Ensemble, exists C : Ensemble,
@@ -286,9 +292,10 @@ Inductive binarychoice := | leftopt : binarychoice | rightopt : binarychoice.
 Definition pairing_cons (A B : Ensemble)
 	:= ens binarychoice (fun b => match b with | leftopt => A | rightopt => B end).
 Definition singleton (x : Ensemble) := pairing_cons x x.
-Notation "E{ A ';' B }" := (pairing_cons A B) (at level 69, only parsing).
+Notation "Ep{ A ; B }" := (pairing_cons A B) (at level 69, only parsing).
 Notation "{ A  ;  B }" := (pairing_cons A B) (at level 69, only printing).
-Notation "E{ A }" := (singleton A) (at level 69, format "E{ A }").
+Notation "Ep{ A }" := (singleton A) (at level 69, only parsing).
+Notation "E{ A }" := (singleton A) (at level 69, only printing).
 (* For all Ensemble A,
  * ens_union_cons constructs a type that is then mapped to all elements
  *  of the elements of A.
@@ -299,12 +306,20 @@ Definition ens_union_cons (A : Ensemble) : Ensemble := let (A', f) := A in
 	ens { x : A' & pi1e (f x) }
 		(fun X => match X with existT _ x y => pi2e (f x) y end).
 Definition pair_union_cons (A B : Ensemble) : Ensemble
-	:= ens_union_cons (E{A ; B}).
+	:= ens_union_cons (Ep{A ; B}).
 
 Infix "\union" := pair_union_cons (at level 50, left associativity).
 Notation "'\Union' a" := (ens_union_cons a) (at level 69, no associativity).
 Notation "a \\ b" := (separation_cons a (fun x => x not_in b)) (at level 69, no associativity).
 Definition inter a b := separation_cons a (fun x => x inE b).
+Lemma is_prop_inE_l : forall B : Ensemble, is_prop (fun a => a inE B).
+Proof.
+	intros B a ainB c aeqc; exact (Eeq_in_trans_l aeqc ainB).
+Qed.
+Lemma is_prop_inE_r : forall a : Ensemble, is_prop (fun B => a inE B).
+Proof.
+	intros a B ainB c aeqc; exact (in_Eeq_trans_l aeqc ainB).
+Qed.
 Infix "\inter" := inter (at level 50, left associativity).
 
 Lemma ens_union_is_union : forall A : Ensemble,
@@ -334,12 +349,12 @@ Lemma ens_inter_is_inter : forall A B : Ensemble,
 Proof.
 	intros a b c cininter; split.
 	by exact (separation_cons_included _ _ _ cininter).
-	by exact (separation_cons_separated _ _ _ cininter).
+	by exact (separation_cons_separated _ _ (is_prop_inE_l _) _ cininter).
 Qed.
 Lemma inter_is_ens_inter : forall A B : Ensemble,
 	Eforall C in A, (C inE B) -> C inE (A \inter B).
-Proof. by intros a b c; exact (separation_cons_separates _ _ _). Qed.
-Lemma inter_sym : forall A B : Ensemble, A \inter B =E B \inter A.
+Proof. by intros a b c; exact (separation_cons_separates _ _ (is_prop_inE_l _) _). Qed.
+Lemma inter_sym : forall A B : Ensemble, A \inter B E= B \inter A.
 Proof.
 	intros a b; apply incl_antisym; intros x xininter; apply inter_is_ens_inter.
 	1,3: by exact (proj2 (ens_inter_is_inter _ _ _ xininter)).
@@ -348,23 +363,23 @@ Qed.
 Arguments ens_inter_is_inter {A B C} CinAuB.
 Arguments inter_is_ens_inter {A B C} CinA CinB.
 
-Lemma l_in_pairing : forall A B : Ensemble, A inE E{A ; B}.
+Lemma l_in_pairing : forall A B : Ensemble, A inE Ep{A ; B}.
 Proof.
 	by intros A B; exists leftopt; exact (Eeq_refl _).
 Qed.
-Lemma r_in_pairing : forall A B : Ensemble, B inE E{A ; B}.
+Lemma r_in_pairing : forall A B : Ensemble, B inE Ep{A ; B}.
 Proof.
 	by intros A B; exists rightopt; exact (Eeq_refl _).
 Qed.
 Lemma pairing_is_lr : forall A B : Ensemble,
-	Eforall C in E{A ; B}, C =E A \/ C =E B.
+	Eforall C in Ep{A ; B}, C E= A \/ C E= B.
 Proof.
 	intros A B C [[|] eeq].
 	by left;  exact eeq.
 	by right; exact eeq.
 Qed.
 Lemma pairing_trans_l : forall A B C : Ensemble,
-	A =E B -> E{A ; C} =E E{B ; C}.
+	A E= B -> Ep{A ; C} E= Ep{B ; C}.
 Proof.
 	intros A B C AeqB; apply incl_antisym.
 	intros x xinAC.
@@ -377,7 +392,7 @@ Proof.
 	by exact (Eeq_in_trans_r xeqC (r_in_pairing _ _)).
 Qed.
 Lemma pairing_trans_r : forall A B C : Ensemble,
-	A =E B -> E{C ; A} =E E{C ; B}.
+	A E= B -> Ep{C ; A} E= Ep{C ; B}.
 Proof.
 	intros A B C AeqB; apply incl_antisym.
 	intros x xinCA.
@@ -389,7 +404,7 @@ Proof.
 	by exact (Eeq_in_trans_r xeqC (l_in_pairing _ _)).
 	by exact (Eeq_in_trans_r (Eeq_trans xeqB (Eeq_sym AeqB)) (r_in_pairing _ _)).
 Qed.
-Lemma pairing_trans : forall A B C D : Ensemble, A =E C -> B =E D -> E{A ; B} =E E{C ; D}.
+Lemma pairing_trans : forall A B C D : Ensemble, A E= C -> B E= D -> Ep{A ; B} E= Ep{C ; D}.
 Proof.
 	intros A B C D AeqC BeqD; apply incl_antisym.
 	intros x xinAB; specialize (pairing_is_lr _ _ _ xinAB) as [xeqA | xeqB].
@@ -399,13 +414,13 @@ Proof.
 	by exact (Eeq_in_trans_r (Eeq_trans xeqC (Eeq_sym AeqC)) (l_in_pairing _ _)).
 	by exact (Eeq_in_trans_r (Eeq_trans xeqD (Eeq_sym BeqD)) (r_in_pairing _ _)).
 Qed.
-Lemma pairing_sym : forall A B : Ensemble, E{A ; B} =E E{B ; A}.
+Lemma pairing_sym : forall A B : Ensemble, Ep{A ; B} E= Ep{B ; A}.
 Proof.
 	intros A B; split; intros [|];
 	  [exists rightopt | exists leftopt | exists rightopt | exists leftopt];
 	  by exact (Eeq_refl _).
 Qed.
-Lemma pairing_inj : forall A B C : Ensemble, E{A ; C} =E E{B ; C} -> A =E B.
+Lemma pairing_inj : forall A B C : Ensemble, Ep{A ; C} E= Ep{B ; C} -> A E= B.
 Proof.
 	intros A B C ACeqBC.
 	specialize (pairing_is_lr _ _ _ (in_Eeq_trans_l ACeqBC (l_in_pairing A C))) as [AeqB | AeqC].
@@ -447,27 +462,27 @@ Arguments pairing_trans {A B C D} AeqC BeqD.
 Arguments pair_union_is_union {A B C} CinAuB.
 Arguments incl_incl_is_union_incl {A B C} AinclC BinclC.
 
-Lemma singleton_has_elem : forall A : Ensemble, A inE E{A}.
+Lemma singleton_has_elem : forall A : Ensemble, A inE Ep{A}.
 Proof.
 	by intros [A f]; exists leftopt; exact (Eeq_refl _).
 Qed.
-Lemma singleton_is_singleton : forall A : Ensemble, Eforall B in E{A}, B =E A.
+Lemma singleton_is_singleton : forall A : Ensemble, Eforall B in Ep{A}, B E= A.
 Proof.
 	by intros A B BinsA;
 	  specialize (pairing_is_lr BinsA) as [H | H];
 	  exact H.
 Qed.
-Lemma singleton_incl_is_in : forall A B : Ensemble, E{A} incl B -> A inE B.
+Lemma singleton_incl_is_in : forall A B : Ensemble, Ep{A} incl B -> A inE B.
 Proof.
 	intros A B sAinclB.
 	by exact (sAinclB _ (singleton_has_elem A)).
 Qed.
-Lemma in_is_singleton_incl : forall A B : Ensemble, A inE B -> E{A} incl B.
+Lemma in_is_singleton_incl : forall A B : Ensemble, A inE B -> Ep{A} incl B.
 Proof.
 	intros A B AinB x xinA.
 	by exact (Eeq_in_trans_r (singleton_is_singleton _ _ xinA) AinB).
 Qed.
-Lemma singleton_refl : forall A B : Ensemble, A =E B -> E{A} =E E{B}.
+Lemma singleton_refl : forall A B : Ensemble, A E= B -> Ep{A} E= Ep{B}.
 Proof.
 	intros A B AeqB; apply incl_antisym.
 	intros x xinsA.
@@ -479,12 +494,12 @@ Proof.
 	apply (Eeq_in_trans_r (Eeq_trans xinsB (Eeq_sym AeqB))).
 	by exact (singleton_has_elem _).
 Qed.
-Lemma singleton_inj : forall A B : Ensemble, E{A} =E E{B} -> A =E B.
+Lemma singleton_inj : forall A B : Ensemble, Ep{A} E= Ep{B} -> A E= B.
 Proof.
 	intros A B sAeqsB.
 	by exact (singleton_is_singleton _ _ (singleton_incl_is_in _ _ (Eeq_incl_l sAeqsB))).
 Qed.
-Lemma singleton_union_singleton : forall A B : Ensemble, (E{A}) \union (E{B}) =E E{A ; B}.
+Lemma singleton_union_singleton : forall A B : Ensemble, (Ep{A}) \union (Ep{B}) E= Ep{A ; B}.
 Proof.
 	intros A B; apply incl_antisym.
 	intros x xinsAusB; specialize (pair_union_is_union xinsAusB) as [xinsA | xinsB].
@@ -501,7 +516,7 @@ Arguments singleton_refl {A B} AeqB.
 Arguments singleton_inj {A B} sAeqsB.
 
 Lemma exists_inter_set
- : forall A, (A <>E EmptySet) ->
+ : forall A, (A E<> EmptySet) ->
   exists C, forall x, (x inE C) <-> (forall a, (a inE A) -> (x inE a)).
 Proof.
 	intros A Ane.
@@ -513,45 +528,43 @@ Proof.
 	by intros H0; exact (HCr (conj (H0 _ a0inA) H0)).
 Qed.
 
-Definition Succ (A : Ensemble) := A \union (E{A}).
+Definition Succ (A : Ensemble) := A \union (Ep{A}).
 Definition is_nat (A : Ensemble) :=
 	(EmptySet inE A) /\ Eforall x in A, ((Succ x) inE A).
-Axiom infinity_axiom : exists N : Ensemble,
-	(is_nat N) /\ (forall a, (is_nat a) -> N incl a).
+Axiom infinity_axiom : { N : Ensemble | (is_nat N) /\ (forall a, (is_nat a) -> N incl a) }.
 
-Definition two_tuple A B := E{E{A} ; E{A ; B}}.
+Definition two_tuple A B := Ep{Ep{A} ; Ep{A ; B}}.
 Notation "E( A , B )" := (two_tuple A B) (at level 69, no associativity, only parsing).
 Notation "( A ,  B )" := (two_tuple A B) (at level 69, no associativity, only printing).
-Lemma two_tuple_antisym : forall A B : Ensemble, E(A, B) =E E(B, A) -> A =E B.
+Lemma two_tuple_antisym : forall A B : Ensemble, E(A, B) E= E(B, A) -> A E= B.
 Proof.
 	intros A B ABeqBA.
-	specialize (pairing_trans_r _ _ (E{B}) (pairing_sym A B)) as B_ABeqB_BA.
-	unfold two_tuple in ABeqBA;
-	  specialize (pairing_inj (Eeq_trans ABeqBA (Eeq_sym B_ABeqB_BA))) as sAeqsB.
+	specialize (pairing_trans_r _ _ (Ep{B}) (pairing_sym A B)) as B_ABeqB_BA.
+	specialize (pairing_inj (Eeq_trans ABeqBA (Eeq_sym B_ABeqB_BA))) as sAeqsB.
 	by exact (singleton_inj sAeqsB).
 Qed.
-Lemma two_tuple_eq_l : forall A B C : Ensemble, A =E B -> E(A, C) =E E(B, C).
+Lemma two_tuple_eq_l : forall A B C : Ensemble, A E= B -> E(A, C) E= E(B, C).
 Proof.
 	intros A B C AeqB.
 	specialize (singleton_refl AeqB) as sAeqsB.
 	specialize (pairing_trans_l _ _ C AeqB) as ACeqBC.
 	by exact (pairing_trans sAeqsB ACeqBC).
 Qed.
-Lemma two_tuple_eq_r : forall A B C : Ensemble, B =E C -> E(A, B) =E E(A, C).
+Lemma two_tuple_eq_r : forall A B C : Ensemble, B E= C -> E(A, B) E= E(A, C).
 Proof.
 	intros A B C BeqC.
 	specialize (singleton_refl (Eeq_refl A)) as sAeqsA.
 	specialize (pairing_trans_r _ _ A BeqC) as ABeqAC.
 	by exact (pairing_trans sAeqsA ABeqAC).
 Qed.
-Lemma two_tuple_eq : forall A B C D : Ensemble, A =E C -> B =E D -> E(A, B) =E E(C, D).
+Lemma two_tuple_eq : forall A B C D : Ensemble, A E= C -> B E= D -> E(A, B) E= E(C, D).
 Proof.
 	intros A B C D AeqC BeqD.
 	specialize (singleton_refl AeqC) as sAeqsC.
 	specialize (pairing_trans AeqC BeqD) as ABeqCD.
 	by exact (pairing_trans sAeqsC ABeqCD).
 Qed.
-Lemma two_tuple_inj_l : forall A B C : Ensemble, E(A, C) =E E(B, C) -> A =E B.
+Lemma two_tuple_inj_l : forall A B C : Ensemble, E(A, C) E= E(B, C) -> A E= B.
 Proof.
 	intros A B C pACeqpBC.
 	specialize (pairing_is_lr (Eeq_incl_l pACeqpBC _
@@ -560,7 +573,7 @@ Proof.
 	by exact (Eeq_sym
 	  (singleton_is_singleton (in_Eeq_trans_r sAeqBC (l_in_pairing B C)))).
 Qed.
-Lemma two_tuple_inj_r : forall A B C : Ensemble, E(A, B) =E E(A, C) -> B =E C.
+Lemma two_tuple_inj_r : forall A B C : Ensemble, E(A, B) E= E(A, C) -> B E= C.
 Proof.
 	intros A B C pACeqpBC.
 	specialize (pairing_is_lr (Eeq_incl_r pACeqpBC _
@@ -622,7 +635,7 @@ Proof.
 	by exists z; exact (Eeq_sym yinxbyz).
 Qed.
 Lemma power_set_trans : forall A B : Ensemble,
-	A =E B -> (power_set_cons A) =E (power_set_cons B).
+	A E= B -> (power_set_cons A) E= (power_set_cons B).
 Proof.
 	intros A B AeqB; apply incl_antisym.
 	by specialize (Eeq_incl_l AeqB) as AinclB; exact (power_set_incl _ _ AinclB).
@@ -631,12 +644,12 @@ Qed.
 Arguments power_set_incl {A B} AinclB.
 Arguments power_set_trans {A B} AinclB.
 
-Definition cartesian (A B : Ensemble) :=
+Definition cartesian_cons (A B : Ensemble) :=
 	E{ x in power_set_cons ((power_set_cons A) \union (power_set_cons (A \union B))) |
-	  exists a b : Ensemble, ((a inE A) /\ (b inE B)) /\ (x =E E(a, b))}.
-Lemma cartesian_is_product : forall A B : Ensemble,
-	Eforall C in cartesian A B,
-	 exists a b : Ensemble, ((a inE A) /\ (b inE B)) /\ (C =E E(a, b)).
+	  exists a b : Ensemble, ((a inE A) /\ (b inE B)) /\ (x E= E(a, b))}.
+Lemma cartesian_cons_is_product : forall A B : Ensemble,
+	Eforall C in cartesian_cons A B,
+	 exists a b : Ensemble, ((a inE A) /\ (b inE B)) /\ (C E= E(a, b)).
 Proof.
 	intros A B C [[x [a [b [[ainA binB] xeqab]]]] Ceqx].
 	exists a, b; split; [split|].
@@ -644,11 +657,13 @@ Proof.
 	by exact binB.
 	by exact (Eeq_trans Ceqx xeqab).
 Qed.
-Lemma product_is_cartesian : forall A B : Ensemble,
-	forall a b : Ensemble, a inE A -> b inE B -> E(a, b) inE cartesian A B.
+Lemma product_is_cartesian_cons : forall A B : Ensemble,
+	forall a b : Ensemble, a inE A -> b inE B -> E(a, b) inE cartesian_cons A B.
 Proof.
 	intros A B a b ainA binB.
 	apply separation_cons_separates.
+	unfold is_prop; intros E [a1 [b1 [[a1in b1in] eqE]]] F EeqF.
+	exists a1, b1; split; [split; [exact a1in|exact b1in]|exact (Eeq_trans (Eeq_sym EeqF) eqE)].
 	specialize (in_is_singleton_incl ainA) as sainclA; clear ainA.
 	specialize (in_is_singleton_incl binB) as sbinclB; clear binB.
 	specialize (incl_trans sainclA (pair_union_is_union_l A B)) as sainclAB.
@@ -672,66 +687,66 @@ Proof.
 	by exact binB.
 	by exact (Eeq_refl _).
 Qed.
+Definition cartesian (A B : Ensemble) := let (a, f) := A in let (b, g) := B in
+	ens (a * b) (fun p => let (x, y) := p in E(f x, g y)).
+Lemma cartesian_to_cons : forall A B, cartesian A B E= cartesian_cons A B.
+Proof.
+	assert (H0 : forall A B, A incl B /\ B incl A -> A E= B).
+	{ intros [A f] [B g] [AiB BiA]; split.
+	  by intros x; exact (AiB _ (application_in _ _ x)).
+	  by intros y; specialize (BiA _ (application_in _ _ y)) as [x Hx];
+	    exists x; exact (Eeq_sym Hx). }
+	intros [A f] [B g]; apply H0; clear H0; split.
+	intros e [[x y] He].
+	by apply (Eeq_in_trans_r He), product_is_cartesian_cons; exact (application_in _ _ _).
+	
+	intros e [[prop [a [b [[[va ain] [vb bin]] Hpair]]]] He].
+	exists (va, vb).
+	apply (Eeq_trans (Eeq_trans He Hpair)).
+	by apply two_tuple_eq; [exact ain|exact bin].
+Qed.
+Lemma cartesian_is_product : forall A B : Ensemble,
+	Eforall C in cartesian A B,
+	 exists a b : Ensemble, ((a inE A) /\ (b inE B)) /\ (C E= E(a, b)).
+Proof.
+	intros A B C CinAxB.
+	apply cartesian_cons_is_product.
+	exact (in_Eeq_trans_l (cartesian_to_cons _ _) CinAxB).
+Qed.
+Lemma product_is_cartesian : forall A B : Ensemble,
+	forall a b : Ensemble, a inE A -> b inE B -> E(a, b) inE cartesian A B.
+Proof.
+	by intros A B a b ain bin; apply (in_Eeq_trans_r (cartesian_to_cons _ _));
+	  exact (product_is_cartesian_cons _ _ _ _ ain bin).
+Qed.
 
 Definition partial_application_set (A B : Ensemble) : Ensemble :=
-	E{ f in cartesian A B |
-	 forall x y x' y', x =E x' -> E(x, y) inE f -> E(x', y') inE f -> y =E y' }.
+	E{ f in power_set_cons (cartesian A B) |
+	 forall x y y', E(x, y) inE f -> E(x, y') inE f -> y E= y' }.
 Definition total_application_set (A B : Ensemble) : Ensemble :=
 	E{ f in partial_application_set A B |
 	 Eforall x in A, Eexists y in B, E(x, y) inE f }.
 Lemma total_incl_partial : forall A B : Ensemble,
 	total_application_set A B incl partial_application_set A B.
 Proof.
-	by intros A B f [[witness _] fintotbywitness]; exists witness; exact fintotbywitness.
+	by intros [A fA] [B fB] f [[w _] Hw]; exists w; exact Hw.
 Qed.
-Axiom partial_application_cons_ax :
-  forall {A B : _} (f : _) (f_fun : f inE (partial_application_set A B)),
-	{ g : forall x, (Eexists y in B, E(x, y) inE f) -> Ensemble |
-	 forall x : _, forall xin : (Eexists y in B, E(x, y) inE f), E(x, g x xin) inE f }.
-Lemma partial_application_image {A B : _} (f : _) (f_fun : f inE (partial_application_set A B))
- : forall (x : _) (xin : _), let (g, _) := partial_application_cons_ax f f_fun in g x xin inE B.
-	intros x xin; destruct (partial_application_cons_ax f f_fun) as [g Pg].
-	specialize (Pg x xin).
-	destruct f_fun as [[f_carte f_fun] feq].
-	destruct xin as [y [yinB xyinf]].
-	specialize (f_fun
-		x
-		y
-		x
-		(g x (ex_intro (fun y => y inE B /\ E(x, y) inE f) y (conj yinB xyinf)))
-		(Eeq_refl _)
-		(in_Eeq_trans_l feq xyinf)
-		(in_Eeq_trans_l feq Pg)).
-	by exact (Eeq_in_trans_l f_fun yinB).
-Qed.
-
-Definition total_application_cons {A B} f (f_fun : f inE (total_application_set A B)) :
- { g : Eforall x in A, Ensemble | Eforall x in A as xin, E(x, g x xin) inE f }.
-	assert (xin_g : Eforall x in A, Eexists y in B, E(x, y) inE f).
-	{ intros x xin; destruct f_fun as [[? f_total] feqXX].
-	  specialize (f_total x xin) as [y [yin Hy]].
-	  exists y; split.
-	  by exact yin.
-	  by exact (in_Eeq_trans_r feqXX Hy). }
-	specialize (partial_application_cons_ax f (total_incl_partial _ _ _ f_fun)) as [g Pg].
-	pose (g' := fun x xin : _ => g x (xin_g x xin)).
-	refine (exist _ g' _); intros x xin; unfold g'; clear g'.
-	by exact (Pg _ _).
+Definition partial_application_cons : forall {A B}, Eforall f in partial_application_set A B,
+  forall x : pi1e A, {y : pi1e B | E(pi2e A x, pi2e B y) inE f} -> pi1e B.
+	intros A B f inpa x [y _].
+	exact y.
 Defined.
-Lemma total_application_image {A B : _} (f : _) (f_fun : f inE (total_application_set A B))
- : Eforall x in A as xin, let (g, _) := total_application_cons f f_fun in g x xin inE B.
-Proof.
-	intros x xin; destruct (total_application_cons f f_fun) as [g Pg].
-	specialize (Pg x xin).
-	destruct f_fun as [[[f_carte f_fun] f_total] feq].
-	specialize (f_total x xin) as [y [yinB xyinf']].
-	specialize (f_fun
-		x
-		y
-		x
-		(g x xin)
-		(Eeq_refl _)
-		xyinf'
-		(in_Eeq_trans_l feq Pg)).
-	by exact (Eeq_in_trans_l f_fun yinB).
-Qed.
+
+(** May break Coq's internal consistency: *)
+Axiom ex_to_exist : forall A B x f, (exists y, E(pi2e A x, pi2e B y) inE f)
+ -> {y : pi1e B | E(pi2e A x, pi2e B y) inE f}.
+Definition total_application_cons {A B} f (f_fun : f inE (total_application_set A B)) :
+  pi1e A -> pi1e B.
+	intros x.
+	destruct A as [A fA]; destruct B as [B fB].
+	apply (partial_application_cons f (total_incl_partial _ _ _ f_fun) x), ex_to_exist.
+	destruct f_fun as [[[prop Hpartial] Htotal] Hf].
+	specialize (Htotal _ (application_in _ _ x)) as [y [[v Hy] Hpair]].
+	exists v; unfold pi2e; refine (in_Eeq_trans_r Hf (Eeq_in_trans_l _ Hpair)).
+	by exact (two_tuple_eq_r _ _ _ Hy).
+Defined.
